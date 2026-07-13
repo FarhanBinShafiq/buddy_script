@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { use } from 'react';
 import './Login.css';
+import { useNavigate } from 'react-router-dom';
 
 const Login = () => {
+
+
+  const navigate = useNavigate();
+
+
+  const HanldeLogin = () => {
+    e.preventDefault()
+    localStorage.setItem('authToken', 'mock-jwt-token-value-12345');
+    navigate('/feed')
+
+  }
+
   return (
 
     <section className="_social_login_wrapper _layout_main_wrapper">
@@ -39,7 +52,7 @@ const Login = () => {
                 </button>
                 <div className="_social_login_content_bottom_txt _mar_b40"> <span>Or</span>
                 </div>
-                <form className="_social_login_form">
+                <form className="_social_login_form" onSubmit={HanldeLogin}>
                   <div className="row">
                     <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
                       <div className="_social_login_form_input _mar_b14">
