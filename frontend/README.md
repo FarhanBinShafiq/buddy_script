@@ -1,16 +1,62 @@
-# React + Vite
+# Buddy Script - Frontend Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This is the frontend implementation for the **Buddy Script** social media application, created as part of the selection task for the Full Stack Engineer role at Appifylab.
 
-Currently, two official plugins are available:
+## 🚀 Features Implemented
+- **React Router Integration**: Clean and smooth routing set up for Login, Register, and Feed pages.
+- **Login Page**: Responsive layout with Google authentication option and state-driven inputs.
+- **Registration Page**: Full sign-up form with input validations.
+- **Feed Page Layout**: Beautiful, structured dashboard containing:
+  - Navigation bar & search bar
+  - Left & Right Sidebars
+  - Story Slider
+  - Post Creation Card
+  - Post Timeline Feed
+- **Modular Architecture**: Page-specific layouts split into dedicated subfolders under `src/pages/Feed/components/` for maximum maintainability.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Technology Stack
+- **Library**: React (v19)
+- **Build Tool**: Vite
+- **Routing**: React Router DOM (v7)
+- **Styling**: Bootstrap & Custom CSS
 
-## React Compiler
+## 📁 Folder Structure
+```text
+src/
+├── components/          # Global reusable UI components
+├── pages/
+│   ├── Login/           # Login Page and CSS
+│   ├── Register/        # Registration Page and CSS
+│   └── Feed/            # Main Feed Page
+│       ├── components/  # Feed-specific modular components (Header, Sidebars, StorySlider, etc.)
+│       ├── Feed.jsx     # Main Layout Coordinator
+│       └── Feed.css     # Feed page styling
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 💻 Getting Started
 
-## Expanding the Oxlint configuration
+### Prerequisites
+Make sure you have [Node.js](https://nodejs.org/) installed.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+### Installation
+1. Navigate into the frontend folder:
+   ```bash
+   cd frontend
+   ```
+2. Install the dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the App Locally
+Start the development server:
+   ```bash
+   npm run dev
+   ```
+The app will run locally at `http://localhost:5173` (or the next available port).
+
+### Building for Production
+To build a production-ready bundle:
+   ```bash
+   npm run build
+   ```
