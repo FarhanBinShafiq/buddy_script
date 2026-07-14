@@ -1,7 +1,8 @@
-import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import './Register.css';
 
 const Register = () => {
+  const navigate = useNavigate();
   return (
     <section className="_social_registration_wrapper _layout_main_wrapper">
       {/*Registration Section Start*/}
@@ -74,7 +75,7 @@ const Register = () => {
                   <div className="row">
                     <div className="col-lg-12 col-md-12 col-xl-12 col-sm-12">
                       <div className="_social_registration_form_btn _mar_t40 _mar_b60">
-                        <button type="button" className="_social_registration_form_btn_link _btn1">Login now</button>
+                        <button type="submit" className="_social_registration_form_btn_link _btn1">Register now</button>
                       </div>
                     </div>
                   </div>
@@ -82,7 +83,7 @@ const Register = () => {
                 <div className="row">
                   <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
                     <div className="_social_registration_bottom_txt">
-                      <p className="_social_registration_bottom_txt_para">Dont have an account? <a href="#0">Create New Account</a>
+                      <p className="_social_registration_bottom_txt_para">Already have an account? <Link to="/login">Login</Link>
                       </p>
                     </div>
                   </div>
