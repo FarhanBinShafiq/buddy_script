@@ -1,6 +1,6 @@
 import React, { use } from 'react';
 import './Login.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
 
@@ -8,7 +8,7 @@ const Login = () => {
   const navigate = useNavigate();
 
 
-  const HanldeLogin = () => {
+  const HanldeLogin = (e) => {
     e.preventDefault()
     localStorage.setItem('authToken', 'mock-jwt-token-value-12345');
     navigate('/feed')
@@ -91,7 +91,7 @@ const Login = () => {
                 <div className="row">
                   <div className="col-xl-12 col-lg-12 col-md-12 col-sm-12">
                     <div className="_social_login_bottom_txt">
-                      <p className="_social_login_bottom_txt_para">Dont have an account? <a href="#0">Create New Account</a>
+                      <p className="_social_login_bottom_txt_para">Dont have an account? <Link to="/register">Create New Account</Link>
                       </p>
                     </div>
                   </div>
