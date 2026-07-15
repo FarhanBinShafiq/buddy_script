@@ -15,23 +15,19 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Create uploads directory if it doesn't exist
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-app.use('/uploads', express.static(uploadDir));
-
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+// Create uploads directory (not available on Vercel, wrapped in try-catch)
+try {
+  const uploadDir = path.join(__dirname, 'uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
   }
-});
-const upload = multer({ storage });
+  app.use('/uploads', express.static(uploadDir));
+} catch (e) {
+  console.log('Uploads directory not available (serverless env):', e.message);
+}
+
+// Multer uses memory storage (images uploaded to ImgBB directly from frontend)
+const upload = multer({ storage: multer.memoryStorage() });
 
 const dbUser = process.env.DB_USER || 'admin';
 const dbPass = process.env.DB_PASS || '123qaz./';
