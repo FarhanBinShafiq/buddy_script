@@ -127,14 +127,14 @@ Follow these steps to run the application locally on your machine.
    ```
 3. Create a `.env` file in the root of the `frontend/` directory:
    ```env
-   VITE_API_URL=http://localhost:5000
-   VITE_IMGBB_API_KEY=4708721477e778ca2626f0e97db2ec03
-   VITE_FIREBASE_API_KEY=AIzaSyDCBhsREP9ozNvHVQoa5f78ttk4n09_110
-   VITE_FIREBASE_AUTH_DOMAIN=buddy-script-50d85.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=buddy-script-50d85
-   VITE_FIREBASE_STORAGE_BUCKET=buddy-script-50d85.firebasestorage.app
-   VITE_FIREBASE_MESSAGING_SENDER_ID=589790930897
-   VITE_FIREBASE_APP_ID=1:589790930897:web:afdf016178e3fd9e00a2f0
+    VITE_API_URL=http://localhost:5000
+    VITE_IMGBB_API_KEY=your_imgbb_api_key_here
+    VITE_FIREBASE_API_KEY=your_firebase_api_key_here
+    VITE_FIREBASE_AUTH_DOMAIN=your_firebase_auth_domain_here
+    VITE_FIREBASE_PROJECT_ID=your_firebase_project_id_here
+    VITE_FIREBASE_STORAGE_BUCKET=your_firebase_storage_bucket_here
+    VITE_FIREBASE_MESSAGING_SENDER_ID=your_firebase_messaging_sender_id_here
+    VITE_FIREBASE_APP_ID=your_firebase_app_id_here
    ```
 4. Start the Vite development server:
    ```bash
