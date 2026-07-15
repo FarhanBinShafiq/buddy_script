@@ -34,7 +34,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // MongoDB Connection
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ua4yklp.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb://${encodeURIComponent(process.env.DB_USER)}:${encodeURIComponent(process.env.DB_PASS)}@ac-eujmygz-shard-00-00.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-01.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-02.tzqwszd.mongodb.net:27017/?ssl=true&replicaSet=atlas-q0lsm7-shard-0&authSource=admin&appName=Cluster0`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
