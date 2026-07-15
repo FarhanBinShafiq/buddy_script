@@ -33,8 +33,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
+const dbUser = process.env.DB_USER || 'admin';
+const dbPass = process.env.DB_PASS || '123qaz./';
+const accessTokenSecret = process.env.ACCESS_TOKEN || 'super_secret_jwt_access_token_12345';
+
 // MongoDB Connection
-const uri = `mongodb://${encodeURIComponent(process.env.DB_USER)}:${encodeURIComponent(process.env.DB_PASS)}@ac-eujmygz-shard-00-00.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-01.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-02.tzqwszd.mongodb.net:27017/?ssl=true&replicaSet=atlas-q0lsm7-shard-0&authSource=admin&appName=Cluster0`;
+const uri = `mongodb://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@ac-eujmygz-shard-00-00.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-01.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-02.tzqwszd.mongodb.net:27017/?ssl=true&replicaSet=atlas-q0lsm7-shard-0&authSource=admin&appName=Cluster0`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -50,7 +54,7 @@ function verifyJWT(req, res, next) {
 
   const token = authHeader.split(' ')[1];
 
-  jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+  jwt.verify(token, accessTokenSecret, function (err, decoded) {
     if (err) {
       return res.status(403).send({ message: "forbidden access" });
     }
@@ -128,7 +132,7 @@ async function run() {
         // Sign JWT token
         const token = jwt.sign(
           { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
-          process.env.ACCESS_TOKEN,
+          accessTokenSecret,
           { expiresIn: '30d' }
         );
 
@@ -178,7 +182,7 @@ async function run() {
         // Sign JWT token
         const token = jwt.sign(
           { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
-          process.env.ACCESS_TOKEN,
+          accessTokenSecret,
           { expiresIn: '30d' }
         );
 
@@ -463,3 +467,6 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
+
+module.exports = app;
+

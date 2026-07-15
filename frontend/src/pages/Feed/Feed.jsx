@@ -15,7 +15,7 @@ const Feed = () => {
     const token = localStorage.getItem('authToken');
     console.log("Fetching posts from backend...");
     
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }

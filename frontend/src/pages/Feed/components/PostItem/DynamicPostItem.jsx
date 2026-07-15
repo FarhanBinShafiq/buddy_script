@@ -23,7 +23,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Toggling like for post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/like`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/like`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -44,7 +44,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Submitting comment for post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/comment`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/comment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Submitting reply for comment ${commentId} on post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/comment/${commentId}/reply`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/comment/${commentId}/reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -90,7 +90,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Toggling like for comment ${commentId} on post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/comment/${commentId}/like`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/comment/${commentId}/like`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -108,7 +108,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Toggling like for reply ${replyId} on comment ${commentId} on post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/comment/${commentId}/reply/${replyId}/like`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/comment/${commentId}/reply/${replyId}/like`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -140,7 +140,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     const token = localStorage.getItem('authToken');
     console.log(`Sharing post ${post._id}`);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/posts/${post._id}/share`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts/${post._id}/share`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token}`
@@ -159,7 +159,7 @@ const DynamicPostItem = ({ post, onPostUpdated }) => {
     if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/assets/')) {
       return imagePath;
     }
-    return `${import.meta.env.VITE_API_URL}/uploads/${imagePath}`;
+    return `${import.meta.env.VITE_API_URL || ''}/uploads/${imagePath}`;
   };
 
   const postLikesTooltip = Array.isArray(post.likes) && post.likes.length > 0

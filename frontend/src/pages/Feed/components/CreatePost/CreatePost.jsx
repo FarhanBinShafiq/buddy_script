@@ -58,7 +58,7 @@ const CreatePost = ({ onPostCreated }) => {
       }
 
       console.log("Submitting post to backend with ImgBB hosted URL...");
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/posts`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

@@ -16,7 +16,7 @@ const Login = () => {
 
     console.log("Attempting login for email:", email);
 
-    fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -56,7 +56,7 @@ const Login = () => {
 
         console.log("Firebase Google Authentication successful:", email);
 
-        fetch(`${import.meta.env.VITE_API_URL}/api/auth/google`, {
+        fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/google`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

@@ -35,7 +35,7 @@ const Register = () => {
     console.log("Registering user:", email);
 
     // Call the registration API endpoint
-    fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -72,7 +72,7 @@ const Register = () => {
 
         console.log("Firebase Google Registration successful:", emailVal);
 
-        fetch(`${import.meta.env.VITE_API_URL}/api/auth/google`, {
+        fetch(`${import.meta.env.VITE_API_URL || ''}/api/auth/google`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
