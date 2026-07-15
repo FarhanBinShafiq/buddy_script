@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/7cf35490-41ff-454b-a788-8a288b6b86d3
+
 # Buddy Script - Social Network Platform
 
 A full-stack social networking web application converted from flat HTML/CSS templates into a modern, secure, and reactive React + Node.js application.
