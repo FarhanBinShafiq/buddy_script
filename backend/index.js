@@ -38,8 +38,10 @@ const dbPass = process.env.DB_PASS || '123qaz./';
 const accessTokenSecret = process.env.ACCESS_TOKEN || 'super_secret_jwt_access_token_12345';
 
 // MongoDB Connection
-const uri = `mongodb+srv://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@ac-eujmygz.tzqwszd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+const uri = `mongodb://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@ac-eujmygz-shard-00-00.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-01.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-02.tzqwszd.mongodb.net:27017/?ssl=true&replicaSet=atlas-q0lsm7-shard-0&authSource=admin&appName=Cluster0`;
 const client = new MongoClient(uri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1
 });
 
