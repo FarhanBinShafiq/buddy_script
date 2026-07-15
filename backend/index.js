@@ -38,11 +38,33 @@ const dbPass = process.env.DB_PASS || '123qaz./';
 const accessTokenSecret = process.env.ACCESS_TOKEN || 'super_secret_jwt_access_token_12345';
 
 // MongoDB Connection
-const uri = `mongodb://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@ac-eujmygz-shard-00-00.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-01.tzqwszd.mongodb.net:27017,ac-eujmygz-shard-00-02.tzqwszd.mongodb.net:27017/?ssl=true&replicaSet=atlas-q0lsm7-shard-0&authSource=admin&appName=Cluster0`;
+const uri = `mongodb+srv://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPass)}@ac-eujmygz.tzqwszd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
   serverApi: ServerApiVersion.v1
+});
+
+// Global DB collections
+let usersCollection;
+let postsCollection;
+
+async function connectDB() {
+  if (usersCollection && postsCollection) return;
+  await client.connect();
+  const db = client.db('buddy_script');
+  usersCollection = db.collection('users');
+  postsCollection = db.collection('posts');
+  console.log("MongoDB Database Connected Successfully");
+}
+
+// DB connection middleware
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    res.status(500).send({ error: "Database connection failed" });
+  }
 });
 
 // verifyJWT middleware
@@ -63,403 +85,354 @@ function verifyJWT(req, res, next) {
   });
 }
 
-async function run() {
+// ---------------- AUTH API ----------------
+
+// User Registration
+app.post('/api/auth/register', async (req, res) => {
+  const { firstName, lastName, email, password } = req.body;
+
   try {
-    await client.connect();
-    const db = client.db('buddy_script');
-    const usersCollection = db.collection('users');
-    const postsCollection = db.collection('posts');
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).send({ message: 'All fields are required' });
+    }
 
-    console.log("MongoDB Database Connected Successfully");
+    const query = { email };
+    const exists = await usersCollection.findOne(query);
+    if (exists) {
+      return res.status(400).send({ message: 'User already exists with this email' });
+    }
 
-    // ---------------- AUTH API ----------------
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // User Registration
-    app.post('/api/auth/register', async (req, res) => {
-      const { firstName, lastName, email, password } = req.body;
+    const newUser = {
+      firstName,
+      lastName,
+      email,
+      password: hashedPassword,
+      createdAt: new Date()
+    };
 
-      try {
-        if (!firstName || !lastName || !email || !password) {
-          return res.status(400).send({ message: 'All fields are required' });
-        }
+    await usersCollection.insertOne(newUser);
+    res.status(201).send({ success: true, message: 'User registered successfully' });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-        const query = { email };
-        const exists = await usersCollection.findOne(query);
-        if (exists) {
-          return res.status(400).send({ message: 'User already exists with this email' });
-        }
+// User Login
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
 
-        // Hash password
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+  try {
+    if (!email || !password) {
+      return res.status(400).send({ message: 'Email and password are required' });
+    }
 
-        const newUser = {
-          firstName,
-          lastName,
-          email,
-          password: hashedPassword,
-          createdAt: new Date()
-        };
+    const user = await usersCollection.findOne({ email });
+    if (!user) {
+      return res.status(400).send({ message: 'Invalid email or password' });
+    }
 
-        await usersCollection.insertOne(newUser);
-        res.status(201).send({ success: true, message: 'User registered successfully' });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).send({ message: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
+      accessTokenSecret,
+      { expiresIn: '30d' }
+    );
+
+    res.send({
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
       }
     });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-    // User Login
-    app.post('/api/auth/login', async (req, res) => {
-      const { email, password } = req.body;
+// Google Sign-In / Register Sync
+app.post('/api/auth/google', async (req, res) => {
+  const { firstName, lastName, email } = req.body;
 
-      try {
-        if (!email || !password) {
-          return res.status(400).send({ message: 'Email and password are required' });
-        }
+  try {
+    if (!email) {
+      return res.status(400).send({ message: 'Email is required' });
+    }
 
-        const query = { email };
-        const user = await usersCollection.findOne(query);
-        if (!user) {
-          return res.status(400).send({ message: 'Invalid email or password' });
-        }
+    let user = await usersCollection.findOne({ email });
 
-        // Verify password
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-          return res.status(400).send({ message: 'Invalid email or password' });
-        }
+    if (!user) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), salt);
 
-        // Sign JWT token
-        const token = jwt.sign(
-          { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
-          accessTokenSecret,
-          { expiresIn: '30d' }
-        );
+      user = {
+        firstName: firstName || 'Google',
+        lastName: lastName || 'User',
+        email,
+        password: hashedPassword,
+        createdAt: new Date()
+      };
 
-        res.send({
-          token,
-          user: {
-            id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email
-          }
-        });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
+      const result = await usersCollection.insertOne(user);
+      user._id = result.insertedId;
+    }
+
+    const token = jwt.sign(
+      { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
+      accessTokenSecret,
+      { expiresIn: '30d' }
+    );
+
+    res.send({
+      token,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email
       }
     });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-    // Google Sign-In / Register Sync
-    app.post('/api/auth/google', async (req, res) => {
-      const { firstName, lastName, email } = req.body;
+// ---------------- FEED POSTS API ----------------
 
-      try {
-        if (!email) {
-          return res.status(400).send({ message: 'Email is required' });
-        }
+// Create a Post
+app.post('/api/posts', verifyJWT, upload.single('image'), async (req, res) => {
+  const { text, visibility, image: bodyImage } = req.body;
+  const image = req.file ? req.file.filename : (bodyImage || null);
 
-        const query = { email };
-        let user = await usersCollection.findOne(query);
+  try {
+    const newPost = {
+      text,
+      image,
+      author: {
+        id: new ObjectId(req.decoded.id),
+        email: req.decoded.email,
+        firstName: req.decoded.firstName,
+        lastName: req.decoded.lastName
+      },
+      visibility: visibility || 'public',
+      likes: [],
+      comments: [],
+      createdAt: new Date()
+    };
 
-        if (!user) {
-          // Register new user 
-          const salt = await bcrypt.genSalt(10);
-          const hashedPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), salt);
+    const result = await postsCollection.insertOne(newPost);
+    newPost._id = result.insertedId;
+    res.status(201).send(newPost);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-          user = {
-            firstName: firstName || 'Google',
-            lastName: lastName || 'User',
-            email,
-            password: hashedPassword,
-            createdAt: new Date()
-          };
+// Get Posts
+app.get('/api/posts', verifyJWT, async (req, res) => {
+  try {
+    const query = {
+      $or: [
+        { visibility: 'public' },
+        { 'author.email': req.decoded.email }
+      ]
+    };
 
-          const result = await usersCollection.insertOne(user);
-          user._id = result.insertedId;
-        }
+    const posts = await postsCollection.find(query).sort({ _id: -1 }).toArray();
+    res.send(posts);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-        // Sign JWT token
-        const token = jwt.sign(
-          { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
-          accessTokenSecret,
-          { expiresIn: '30d' }
-        );
+// Like/Unlike a Post
+app.put('/api/posts/:id/like', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+  const userEmail = req.decoded.email;
 
-        res.send({
-          token,
-          user: {
-            id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email
-          }
-        });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
+  try {
+    const query = { _id: new ObjectId(id) };
+    const post = await postsCollection.findOne(query);
+    if (!post) return res.status(404).send({ message: 'Post not found' });
 
+    let updatedLikes = [...post.likes];
+    const index = updatedLikes.indexOf(userEmail);
+    if (index === -1) {
+      updatedLikes.push(userEmail);
+    } else {
+      updatedLikes.splice(index, 1);
+    }
 
-    // ---------------- FEED POSTS API ----------------
+    await postsCollection.updateOne(query, { $set: { likes: updatedLikes } });
+    res.send(updatedLikes);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-    // Create a Post
-    app.post('/api/posts', verifyJWT, upload.single('image'), async (req, res) => {
-      const { text, visibility, image: bodyImage } = req.body;
-      const image = req.file ? req.file.filename : (bodyImage || null);
+// Add Comment to Post
+app.post('/api/posts/:id/comment', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+  const { text } = req.body;
 
-      try {
-        const newPost = {
-          text,
-          image,
-          author: {
-            id: new ObjectId(req.decoded.id),
-            email: req.decoded.email,
-            firstName: req.decoded.firstName,
-            lastName: req.decoded.lastName
-          },
-          visibility: visibility || 'public',
-          likes: [],
-          comments: [],
-          createdAt: new Date()
-        };
+  try {
+    if (!text) return res.status(400).send({ message: 'Comment text is required' });
 
-        const result = await postsCollection.insertOne(newPost);
-        newPost._id = result.insertedId;
-        res.status(201).send(newPost);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
+    const query = { _id: new ObjectId(id) };
+    const post = await postsCollection.findOne(query);
+    if (!post) return res.status(404).send({ message: 'Post not found' });
 
-    // Get Posts
-    app.get('/api/posts', verifyJWT, async (req, res) => {
-      try {
-        const query = {
-          $or: [
-            { visibility: 'public' },
-            { 'author.email': req.decoded.email }
-          ]
-        };
+    const newComment = {
+      _id: new ObjectId(),
+      text,
+      author: {
+        email: req.decoded.email,
+        firstName: req.decoded.firstName,
+        lastName: req.decoded.lastName
+      },
+      likes: [],
+      replies: [],
+      createdAt: new Date()
+    };
 
-        const posts = await postsCollection.find(query).sort({ _id: -1 }).toArray();
-        res.send(posts);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
+    await postsCollection.updateOne(query, { $push: { comments: newComment } });
+    res.status(201).send(newComment);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-    // Like/Unlike a Post
-    app.put('/api/posts/:id/like', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-      const userEmail = req.decoded.email;
+// Add Reply to Comment
+app.post('/api/posts/:id/comment/:commentId/reply', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+  const commentId = req.params.commentId;
+  const { text } = req.body;
 
-      try {
-        const query = { _id: new ObjectId(id) };
-        const post = await postsCollection.findOne(query);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
+  try {
+    if (!text) return res.status(400).send({ message: 'Reply text is required' });
 
-        let updatedLikes = [...post.likes];
-        const index = updatedLikes.indexOf(userEmail);
+    const query = {
+      _id: new ObjectId(id),
+      "comments._id": new ObjectId(commentId)
+    };
 
-        if (index === -1) {
-          updatedLikes.push(userEmail);
+    const newReply = {
+      _id: new ObjectId(),
+      text,
+      author: {
+        email: req.decoded.email,
+        firstName: req.decoded.firstName,
+        lastName: req.decoded.lastName
+      },
+      likes: [],
+      createdAt: new Date()
+    };
+
+    await postsCollection.updateOne(query, { $push: { "comments.$.replies": newReply } });
+    res.status(201).send(newReply);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// Like/Unlike a Comment
+app.put('/api/posts/:id/comment/:commentId/like', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+  const commentId = req.params.commentId;
+  const userEmail = req.decoded.email;
+
+  try {
+    const query = { _id: new ObjectId(id) };
+    const post = await postsCollection.findOne(query);
+    if (!post) return res.status(404).send({ message: 'Post not found' });
+
+    const comments = post.comments.map(comment => {
+      if (comment._id.toString() === commentId) {
+        const likes = comment.likes || [];
+        const idx = likes.indexOf(userEmail);
+        if (idx === -1) {
+          likes.push(userEmail);
         } else {
-          updatedLikes.splice(index, 1);
+          likes.splice(idx, 1);
         }
-
-        const updateDoc = {
-          $set: { likes: updatedLikes }
-        };
-
-        await postsCollection.updateOne(query, updateDoc);
-        res.send(updatedLikes);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
+        comment.likes = likes;
       }
+      return comment;
     });
 
-    // Add Comment to Post
-    app.post('/api/posts/:id/comment', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-      const { text } = req.body;
+    await postsCollection.updateOne(query, { $set: { comments } });
+    res.send({ message: 'Comment like toggled' });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
-      try {
-        if (!text) {
-          return res.status(400).send({ message: 'Comment text is required' });
-        }
+// Like/Unlike a Reply
+app.put('/api/posts/:id/comment/:commentId/reply/:replyId/like', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+  const commentId = req.params.commentId;
+  const replyId = req.params.replyId;
+  const userEmail = req.decoded.email;
 
-        const query = { _id: new ObjectId(id) };
-        const post = await postsCollection.findOne(query);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
+  try {
+    const query = { _id: new ObjectId(id) };
+    const post = await postsCollection.findOne(query);
+    if (!post) return res.status(404).send({ message: 'Post not found' });
 
-        const newComment = {
-          _id: new ObjectId(),
-          text,
-          author: {
-            email: req.decoded.email,
-            firstName: req.decoded.firstName,
-            lastName: req.decoded.lastName
-          },
-          likes: [],
-          replies: [],
-          createdAt: new Date()
-        };
-
-        const updateDoc = {
-          $push: { comments: newComment }
-        };
-
-        await postsCollection.updateOne(query, updateDoc);
-        res.status(201).send(newComment);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
-
-    // Add Reply to Comment
-    app.post('/api/posts/:id/comment/:commentId/reply', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-      const commentId = req.params.commentId;
-      const { text } = req.body;
-
-      try {
-        if (!text) {
-          return res.status(400).send({ message: 'Reply text is required' });
-        }
-
-        const query = {
-          _id: new ObjectId(id),
-          "comments._id": new ObjectId(commentId)
-        };
-
-        const newReply = {
-          _id: new ObjectId(),
-          text,
-          author: {
-            email: req.decoded.email,
-            firstName: req.decoded.firstName,
-            lastName: req.decoded.lastName
-          },
-          likes: [],
-          createdAt: new Date()
-        };
-
-        const updateDoc = {
-          $push: { "comments.$.replies": newReply }
-        };
-
-        await postsCollection.updateOne(query, updateDoc);
-        res.status(201).send(newReply);
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
-
-    // Like/Unlike a Comment
-    app.put('/api/posts/:id/comment/:commentId/like', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-      const commentId = req.params.commentId;
-      const userEmail = req.decoded.email;
-
-      try {
-        const query = { _id: new ObjectId(id) };
-        const post = await postsCollection.findOne(query);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-
-        const comments = post.comments.map(comment => {
-          if (comment._id.toString() === commentId) {
-            const likes = comment.likes || [];
+    const comments = post.comments.map(comment => {
+      if (comment._id.toString() === commentId) {
+        const replies = (comment.replies || []).map(reply => {
+          if (reply._id.toString() === replyId) {
+            const likes = reply.likes || [];
             const idx = likes.indexOf(userEmail);
             if (idx === -1) {
               likes.push(userEmail);
             } else {
               likes.splice(idx, 1);
             }
-            comment.likes = likes;
+            reply.likes = likes;
           }
-          return comment;
+          return reply;
         });
-
-        await postsCollection.updateOne(query, { $set: { comments } });
-        res.send({ message: 'Comment like toggled' });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
+        comment.replies = replies;
       }
+      return comment;
     });
 
-    // Like/Unlike a Reply
-    app.put('/api/posts/:id/comment/:commentId/reply/:replyId/like', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-      const commentId = req.params.commentId;
-      const replyId = req.params.replyId;
-      const userEmail = req.decoded.email;
-
-      try {
-        const query = { _id: new ObjectId(id) };
-        const post = await postsCollection.findOne(query);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-
-        const comments = post.comments.map(comment => {
-          if (comment._id.toString() === commentId) {
-            const replies = (comment.replies || []).map(reply => {
-              if (reply._id.toString() === replyId) {
-                const likes = reply.likes || [];
-                const idx = likes.indexOf(userEmail);
-                if (idx === -1) {
-                  likes.push(userEmail);
-                } else {
-                  likes.splice(idx, 1);
-                }
-                reply.likes = likes;
-              }
-              return reply;
-            });
-            comment.replies = replies;
-          }
-          return comment;
-        });
-
-        await postsCollection.updateOne(query, { $set: { comments } });
-        res.send({ message: 'Reply like toggled' });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
-
-    // Share a Post (Increment Share Count)
-    app.put('/api/posts/:id/share', verifyJWT, async (req, res) => {
-      const id = req.params.id;
-
-      try {
-        const query = { _id: new ObjectId(id) };
-        const post = await postsCollection.findOne(query);
-        if (!post) {
-          return res.status(404).send({ message: 'Post not found' });
-        }
-
-        const currentShares = post.shares || 0;
-        await postsCollection.updateOne(query, { $set: { shares: currentShares + 1 } });
-        res.send({ message: 'Post shared successfully' });
-      } catch (error) {
-        res.status(500).send({ error: error.message });
-      }
-    });
-
-  } finally {
-    // client remains connected
+    await postsCollection.updateOne(query, { $set: { comments } });
+    res.send({ message: 'Reply like toggled' });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
   }
-}
-run().catch(console.dir);
+});
 
+// Share a Post
+app.put('/api/posts/:id/share', verifyJWT, async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const query = { _id: new ObjectId(id) };
+    const post = await postsCollection.findOne(query);
+    if (!post) return res.status(404).send({ message: 'Post not found' });
+
+    const currentShares = post.shares || 0;
+    await postsCollection.updateOne(query, { $set: { shares: currentShares + 1 } });
+    res.send({ message: 'Post shared successfully' });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// Root
 app.get('/', (req, res) => {
   res.send('Buddy Script API Server is running...');
 });
@@ -469,4 +442,3 @@ app.listen(port, () => {
 });
 
 module.exports = app;
-
