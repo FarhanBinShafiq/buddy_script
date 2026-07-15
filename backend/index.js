@@ -146,13 +146,63 @@ async function run() {
       }
     });
 
+    // Google Sign-In / Register Sync
+    app.post('/api/auth/google', async (req, res) => {
+      const { firstName, lastName, email } = req.body;
+
+      try {
+        if (!email) {
+          return res.status(400).send({ message: 'Email is required' });
+        }
+
+        const query = { email };
+        let user = await usersCollection.findOne(query);
+
+        if (!user) {
+          // Register new user 
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(Math.random().toString(36).slice(-8), salt);
+
+          user = {
+            firstName: firstName || 'Google',
+            lastName: lastName || 'User',
+            email,
+            password: hashedPassword,
+            createdAt: new Date()
+          };
+
+          const result = await usersCollection.insertOne(user);
+          user._id = result.insertedId;
+        }
+
+        // Sign JWT token
+        const token = jwt.sign(
+          { id: user._id, email: user.email, firstName: user.firstName, lastName: user.lastName },
+          process.env.ACCESS_TOKEN,
+          { expiresIn: '30d' }
+        );
+
+        res.send({
+          token,
+          user: {
+            id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email
+          }
+        });
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
 
     // ---------------- FEED POSTS API ----------------
 
     // Create a Post
     app.post('/api/posts', verifyJWT, upload.single('image'), async (req, res) => {
-      const { text, visibility } = req.body;
-      const image = req.file ? req.file.filename : null;
+      const { text, visibility, image: bodyImage } = req.body;
+      const image = req.file ? req.file.filename : (bodyImage || null);
 
       try {
         const newPost = {
@@ -301,6 +351,100 @@ async function run() {
 
         await postsCollection.updateOne(query, updateDoc);
         res.status(201).send(newReply);
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Like/Unlike a Comment
+    app.put('/api/posts/:id/comment/:commentId/like', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const commentId = req.params.commentId;
+      const userEmail = req.decoded.email;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const post = await postsCollection.findOne(query);
+        if (!post) {
+          return res.status(404).send({ message: 'Post not found' });
+        }
+
+        const comments = post.comments.map(comment => {
+          if (comment._id.toString() === commentId) {
+            const likes = comment.likes || [];
+            const idx = likes.indexOf(userEmail);
+            if (idx === -1) {
+              likes.push(userEmail);
+            } else {
+              likes.splice(idx, 1);
+            }
+            comment.likes = likes;
+          }
+          return comment;
+        });
+
+        await postsCollection.updateOne(query, { $set: { comments } });
+        res.send({ message: 'Comment like toggled' });
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Like/Unlike a Reply
+    app.put('/api/posts/:id/comment/:commentId/reply/:replyId/like', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const commentId = req.params.commentId;
+      const replyId = req.params.replyId;
+      const userEmail = req.decoded.email;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const post = await postsCollection.findOne(query);
+        if (!post) {
+          return res.status(404).send({ message: 'Post not found' });
+        }
+
+        const comments = post.comments.map(comment => {
+          if (comment._id.toString() === commentId) {
+            const replies = (comment.replies || []).map(reply => {
+              if (reply._id.toString() === replyId) {
+                const likes = reply.likes || [];
+                const idx = likes.indexOf(userEmail);
+                if (idx === -1) {
+                  likes.push(userEmail);
+                } else {
+                  likes.splice(idx, 1);
+                }
+                reply.likes = likes;
+              }
+              return reply;
+            });
+            comment.replies = replies;
+          }
+          return comment;
+        });
+
+        await postsCollection.updateOne(query, { $set: { comments } });
+        res.send({ message: 'Reply like toggled' });
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Share a Post (Increment Share Count)
+    app.put('/api/posts/:id/share', verifyJWT, async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const query = { _id: new ObjectId(id) };
+        const post = await postsCollection.findOne(query);
+        if (!post) {
+          return res.status(404).send({ message: 'Post not found' });
+        }
+
+        const currentShares = post.shares || 0;
+        await postsCollection.updateOne(query, { $set: { shares: currentShares + 1 } });
+        res.send({ message: 'Post shared successfully' });
       } catch (error) {
         res.status(500).send({ error: error.message });
       }

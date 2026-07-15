@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 
-const CreatePost = () => {
+const CreatePost = ({ onPostCreated }) => {
   const fileInputRef = useRef(null);
 
   // Form States
@@ -16,48 +16,54 @@ const CreatePost = () => {
     }
   };
 
-  // Upload image to ImgBB and submit post to backend
+  // Submit post to backend
   const handlePostSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!text && !imageFile) {
       alert("Please write something or select a photo.");
       return;
     }
 
     setLoading(true);
-    let imageUrl = null;
 
     try {
-      // 1. Upload to ImgBB if there is an image selected
-      if (imageFile) {
-        const formData = new FormData();
-        formData.append('image', imageFile);
+      const token = localStorage.getItem('authToken');
+      let imageUrl = null;
 
-        const imgBbRes = await fetch(`https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_IMGBB_API_KEY}`, {
+      if (imageFile) {
+        console.log("Uploading image to ImgBB...");
+        const imgbbFormData = new FormData();
+        imgbbFormData.append('image', imageFile);
+
+        const apiKey = import.meta.env.VITE_IMGBB_API_KEY || '4708721477e778ca2626f0e97db2ec03';
+        const imgbbResponse = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
           method: 'POST',
-          body: formData
+          body: imgbbFormData
         });
-        const imgBbData = await imgBbRes.json();
-        
-        if (imgBbData.success) {
-          imageUrl = imgBbData.data.url;
-          console.log("ImgBB Upload Success! Image hosted at:", imageUrl);
-        } else {
-          alert("Image upload failed!");
-          setLoading(false);
-          return;
+
+        if (!imgbbResponse.ok) {
+          throw new Error("Failed to upload image to ImgBB");
         }
+
+        const imgbbData = await imgbbResponse.json();
+        imageUrl = imgbbData.data.url;
+        console.log("Uploaded successfully to ImgBB:", imageUrl);
       }
 
-      // 2. Submit post details to backend
-      const token = localStorage.getItem('authToken');
+      const formData = new FormData();
+      formData.append('text', text);
+      formData.append('visibility', visibility);
+      if (imageUrl) {
+        formData.append('image', imageUrl);
+      }
+
+      console.log("Submitting post to backend with ImgBB hosted URL...");
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/posts`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ text, visibility, image: imageUrl })
+        body: formData
       });
 
       const data = await response.json();
@@ -65,12 +71,13 @@ const CreatePost = () => {
         alert("Post created successfully!");
         setText('');
         setImageFile(null);
+        if (onPostCreated) onPostCreated();
       } else {
         alert(data.message || "Failed to create post");
       }
     } catch (error) {
       console.error("Create Post Error:", error);
-      alert("Something went wrong!");
+      alert("Something went wrong with the image upload or post creation!");
     } finally {
       setLoading(false);
     }
@@ -171,7 +178,26 @@ const CreatePost = () => {
               </button>
             </div>
           </div>
-          <div className="_feed_inner_text_area_btn">
+          <div className="_feed_inner_text_area_btn" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <select 
+              value={visibility} 
+              onChange={(e) => setVisibility(e.target.value)}
+              className="form-select"
+              style={{
+                width: '105px',
+                fontSize: '13px',
+                padding: '6px 8px',
+                borderRadius: '4px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                cursor: 'pointer',
+                color: '#666'
+              }}
+            >
+              <option value="public">🌍 Public</option>
+              <option value="private">🔒 Private</option>
+            </select>
+            
             <button 
               type="button" 
               className="_feed_inner_text_area_btn_link"
@@ -231,7 +257,26 @@ const CreatePost = () => {
                 </button>
               </div>
             </div>
-            <div className="_feed_inner_text_area_btn">
+            <div className="_feed_inner_text_area_btn" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <select 
+                value={visibility} 
+                onChange={(e) => setVisibility(e.target.value)}
+                className="form-select"
+                style={{
+                  width: '105px',
+                  fontSize: '13px',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  border: '1px solid #ccc',
+                  background: '#fff',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                <option value="public">🌍 Public</option>
+                <option value="private">🔒 Private</option>
+              </select>
+
               <button 
                 type="button" 
                 className="_feed_inner_text_area_btn_link"
